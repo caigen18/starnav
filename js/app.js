@@ -63,6 +63,17 @@ const DEFAULT_LINKS = [
   { title: 'DeepSeek', url: 'https://chat.deepseek.com', desc: '国产开源大模型，推理能力强，免费使用', category: 'AI 助手', icon: '🐋' },
   { title: 'Midjourney', url: 'https://www.midjourney.com', desc: 'AI 艺术创作，生成惊艳的图片作品', category: 'AI 助手', icon: '🎨' },
   { title: '通义千问', url: 'https://tongyi.aliyun.com', desc: '阿里巴巴 AI 助手，文档、代码、创作样样行', category: 'AI 助手', icon: '🍃' },
+  // 🇨🇳 国内主流 AI 助手
+  { title: '文心一言', url: 'https://yiyan.baidu.com', desc: '百度出品，国民级中文大模型', category: 'AI 助手', icon: '🗣️' },
+  { title: '豆包', url: 'https://www.doubao.com', desc: '字节跳动旗下全能 AI 助手', category: 'AI 助手', icon: '🫘' },
+  { title: 'Kimi', url: 'https://www.kimi.com', desc: '月之暗面出品，超长上下文阅读', category: 'AI 助手', icon: '🌙' },
+  { title: '腾讯元宝', url: 'https://yuanbao.tencent.com', desc: '腾讯混元大模型，生态集成', category: 'AI 助手', icon: '🪙' },
+  { title: '讯飞星火', url: 'https://xinghuo.xfyun.cn', desc: '科大讯飞大模型，语音能力突出', category: 'AI 助手', icon: '🔥' },
+  { title: '智谱清言', url: 'https://chatglm.cn', desc: '智谱 AI 出品，GLM 大模型', category: 'AI 助手', icon: '🧬' },
+  { title: '天工AI', url: 'https://www.tiangong.cn', desc: '昆仑万维大模型，搜索与创作', category: 'AI 助手', icon: '🛠️' },
+  { title: '纳米AI', url: 'https://www.n.cn', desc: '360 出品，聚合多模型', category: 'AI 助手', icon: '🧲' },
+  { title: '海螺AI', url: 'https://hailuoai.com', desc: 'MiniMax 出品，对话与视频生成', category: 'AI 助手', icon: '🐚' },
+  { title: '秘塔AI搜索', url: 'https://metaso.cn', desc: '无广告 AI 搜索，深度研究', category: 'AI 助手', icon: '🔍' },
 
   // 🛠️ 开发工具
   { title: 'GitHub', url: 'https://github.com', desc: '全球最大的代码托管与开源协作平台', category: '开发工具', icon: '🐙' },
@@ -221,11 +232,12 @@ async function saveData() {
 const activePage = () => data.pages.find((p) => p.id === data.activePage) || data.pages[0];
 const links = () => activePage().links;
 
-/* 合并新增的内置站点（当前用于币圈分类）：
+/* 合并新增的内置站点（币圈 / 国内 AI 助手等）：
    按 URL 去重，把"已有数据里不存在"的默认站点追加到当前页面，
-   避免老用户升级后看不到新分类，也不会重复添加 */
+   避免老用户升级后看不到新分类/新站点，也不会重复添加 */
 function mergeNewDefaults() {
-  const candidates = DEFAULT_LINKS.filter((l) => l.category === '币圈');
+  const MERGE_CATEGORIES = ['币圈', 'AI 助手'];
+  const candidates = DEFAULT_LINKS.filter((l) => MERGE_CATEGORIES.includes(l.category));
   const known = new Set();
   for (const p of data.pages) for (const l of p.links) known.add(l.url);
   const fresh = candidates.filter((l) => !known.has(l.url));

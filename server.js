@@ -296,19 +296,28 @@ async function handleApi(req, res, url) {
   return json(res, { error: 'not_found' }, 404);
 }
 
-/* ---------- 静态文件 ---------- */
+/* ---------- 静态文件（ETag 缓存校验：内容没变则 304，不重传文件） ---------- */
 function serveStatic(req, res, url) {
   let p = decodeURIComponent(url.pathname);
   if (p === '/') p = '/index.html';
   const file = path.normalize(path.join(ROOT, p));
   if (!file.startsWith(ROOT)) { res.writeHead(403); return res.end('Forbidden'); }
-  fs.readFile(file, (err, buf) => {
-    if (err) { res.writeHead(404); return res.end('Not Found'); }
-    res.writeHead(200, {
-      'Content-Type': MIME[path.extname(file)] || 'application/octet-stream',
-      'Cache-Control': 'no-cache',
+  fs.stat(file, (err, st) => {
+    if (err || !st.isFile()) { res.writeHead(404); return res.end('Not Found'); }
+    const etag = `"${st.size}-${st.mtimeMs.toString(16)}"`;
+    if (req.headers['if-none-match'] === etag) {
+      res.writeHead(304, { ETag: etag });
+      return res.end();
+    }
+    fs.readFile(file, (err2, buf) => {
+      if (err2) { res.writeHead(404); return res.end('Not Found'); }
+      res.writeHead(200, {
+        'Content-Type': MIME[path.extname(file)] || 'application/octet-stream',
+        'Cache-Control': 'no-cache', // 每次都带 ETag 校验，命中则 304，节省带宽
+        'ETag': etag,
+      });
+      res.end(buf);
     });
-    res.end(buf);
   });
 }
 

@@ -1283,20 +1283,21 @@ function initStars() {
 
 if (!REDUCED_MOTION) initStars();
 
-/* ---------- 启动（先同步服务器，再渲染） ---------- */
+/* ---------- 启动 ---------- */
 let booted = false;
 
 async function boot() {
   try {
-    // 1) 获取会话状态（是否授权 / 是否已设置密码）
-    const s = await api('/api/session');
+    // 会话状态与服务器数据并行获取，减少等待
+    const [s, r] = await Promise.all([
+      api('/api/session'),
+      api('/api/data'),
+    ]);
     if (s.ok && s.body) {
       serverHasPassword = !!s.body.hasPassword;
       admin = !!s.body.admin;
       setAdmin(admin);
     }
-    // 2) 拉取服务器数据
-    const r = await api('/api/data');
     if (!r.ok || !r.body) throw new Error('data ' + r.status);
     const serverData = r.body;
     if (!Array.isArray(serverData.pages) || serverData.pages.length === 0) {
@@ -1319,4 +1320,9 @@ async function boot() {
   renderAll();
 }
 
+/* 首屏立即渲染：先用本地缓存（或默认种子）秒开页面，
+   再在后台与服务器同步——服务器慢也不影响首屏打开 */
+if (!data || !data.pages.length) data = buildSeed();
+setAdmin(admin);
+renderAll();
 boot();

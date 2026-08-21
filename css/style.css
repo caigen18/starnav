@@ -18,8 +18,9 @@
   --grad-main: linear-gradient(135deg, var(--accent-1), var(--accent-2) 55%, var(--accent-3));
   --radius: 16px;
   --shadow-card: 0 18px 50px -14px rgba(2, 6, 23, 0.75);
-  --font-display: 'Space Grotesk', 'Noto Sans SC', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-body: 'Noto Sans SC', 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* 系统字体栈：无外部字体请求，加载零等待（macOS/Windows/Linux 均有良好渲染） */
+  --font-display: 'Segoe UI', system-ui, -apple-system, Roboto, 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }

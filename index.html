@@ -6,9 +6,7 @@
   <title>星遇导航 · StarNav — 很酷的交互式网址导航</title>
   <meta name="description" content="星空主题的交互式网址导航站：搜索、分类、增删改、随机探索，数据保存在本地浏览器。">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%AD%3C/text%3E%3C/svg%3E">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <!-- 不使用外部字体（Google Fonts 在国内常超时阻塞渲染），全部采用系统字体，秒开 -->
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -179,7 +177,7 @@
 
   <script src="js/app.js"></script>
 
-  <!-- 本地流量统计（js/analytics.local.js 不入库，如不需要可删除本行） -->
-  <script src="js/analytics.local.js"></script>
+  <!-- 本地流量统计（js/analytics.local.js 不入库，如不需要可删除本行）；defer 不阻塞渲染 -->
+  <script src="js/analytics.local.js" defer></script>
 </body>
 </html>

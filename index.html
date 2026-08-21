@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>星遇导航 · StarNav — 很酷的交互式网址导航</title>
+  <meta name="description" content="星空主题的交互式网址导航站：搜索、分类、增删改、随机探索，数据保存在本地浏览器。">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%AD%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- 背景层：流星粒子 + 极光 + 鼠标聚光灯 -->
+  <canvas id="stars" aria-hidden="true"></canvas>
+  <div class="aurora" aria-hidden="true">
+    <i class="blob b1"></i>
+    <i class="blob b2"></i>
+    <i class="blob b3"></i>
+  </div>
+  <div class="spotlight" aria-hidden="true"></div>
+
+  <div class="conn-banner" id="connBanner" hidden>
+    ⚠️ 无法连接服务器 —— 请先运行 <code>node server.js</code>，再访问 <code>http://localhost:3000</code>（当前为离线浏览，改动不会保存）
+  </div>
+
+  <div class="page">
+
+    <header class="topbar">
+      <div class="logo">
+        <span class="logo-badge" aria-hidden="true">🧭</span>
+        <div class="logo-text">
+          <h1>星遇导航 <span class="logo-en">StarNav</span></h1>
+          <p>收藏你热爱的一切 · 你的专属网络入口</p>
+        </div>
+      </div>
+      <div class="top-right">
+        <button class="theme-btn" id="lockBtn" type="button" title="管理模式：解锁后可修改只读内容" aria-label="管理模式" hidden>🔒 管理模式</button>
+        <button class="theme-btn" id="themeBtn" type="button" title="切换页面风格" aria-label="切换页面风格">🏮 经典风格</button>
+        <div class="palette-wrap">
+          <button class="theme-btn" id="paletteBtn" type="button" title="切换配色" aria-label="切换配色">🎨 配色</button>
+          <div class="palette-pop" id="palettePop" hidden>
+            <p class="palette-title">配色方案</p>
+            <div class="palette-grid" id="paletteGrid"></div>
+          </div>
+        </div>
+        <div class="clock" id="clock" aria-label="当前时间">
+          <div class="time" id="time">--:--:--</div>
+          <div class="date" id="date"></div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="greeting" id="greeting">✦</p>
+
+        <div class="search-wrap">
+          <div class="search-box">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="7"></circle>
+              <path d="m20 20-3.5-3.5"></path>
+            </svg>
+            <input id="search" type="text" placeholder="搜索站点、描述或分类…（按 / 快速聚焦）" autocomplete="off" spellcheck="false">
+            <button class="random-btn" id="randomBtn" type="button" title="随机探索一个站点" aria-label="随机探索">🎲</button>
+            <kbd>/</kbd>
+          </div>
+        </div>
+
+        <div class="stats" id="stats"></div>
+      </section>
+
+      <!-- 页面标签栏（自定义页面） -->
+      <div class="pages-bar" role="tablist" aria-label="自定义页面">
+        <div class="pages-tabs" id="pagesTabs"></div>
+        <button class="page-add" id="pageAdd" type="button" title="新建页面" aria-label="新建页面">＋</button>
+      </div>
+
+      <!-- 分类 + 排序工具栏 -->
+      <div class="toolbar">
+        <nav class="chips" id="chips" aria-label="分类筛选"></nav>
+        <div class="sort" id="sortBar" role="group" aria-label="排序方式">
+          <span class="sort-label">排序</span>
+          <button type="button" class="sort-btn" data-sort="recent">最新</button>
+          <button type="button" class="sort-btn" data-sort="oldest">最早</button>
+          <button type="button" class="sort-btn" data-sort="name">名称</button>
+          <button type="button" class="sort-btn" data-sort="visits">热度</button>
+          <button type="button" class="sort-btn" data-sort="manual">手动</button>
+        </div>
+      </div>
+
+      <section class="grid" id="grid" aria-label="站点列表"></section>
+
+      <div class="empty" id="empty" hidden>
+        <div class="empty-emoji" aria-hidden="true">🚀</div>
+        <h3 id="emptyTitle">什么都没有</h3>
+        <p id="emptyDesc">换个关键词试试，或者添加一个新站点。</p>
+        <button class="btn primary" id="emptyBtn" type="button">添加第一个站点</button>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>✦ 星遇导航 — 点击卡片即可访问 · 悬停卡片有快捷操作 · 数据仅保存在你的浏览器本地</p>
+    </footer>
+  </div>
+
+  <!-- 悬浮添加按钮 -->
+  <button class="fab" id="fab" type="button" title="添加新站点" aria-label="添加新站点">+</button>
+
+  <!-- 添加 / 编辑 弹窗 -->
+  <div class="overlay" id="overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <h2 id="modalTitle">添加站点</h2>
+      <form id="linkForm" novalidate>
+        <label>
+          <span>名称</span>
+          <input id="f-title" type="text" required maxlength="40" placeholder="例如：GitHub">
+        </label>
+        <label>
+          <span>链接</span>
+          <input id="f-url" type="text" required placeholder="例如：github.com（可省略 https://）">
+        </label>
+        <label>
+          <span>描述</span>
+          <input id="f-desc" type="text" maxlength="80" placeholder="一句话介绍这个站点（可选）">
+        </label>
+        <label>
+          <span>分类</span>
+          <input id="f-cat" type="text" list="catList" maxlength="20" placeholder="选择已有分类，或输入新分类">
+          <datalist id="catList"></datalist>
+        </label>
+        <label>
+          <span>图标（可选）</span>
+          <input id="f-icon" type="text" maxlength="200" placeholder="表情符号或图片网址，留空自动获取站点图标">
+        </label>
+        <label class="chk-label" id="f-locked-wrap" hidden>
+          <input id="f-locked" type="checkbox">
+          <span>只读内容（仅授权人员可修改）</span>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn ghost" id="cancelBtn">取消</button>
+          <button type="submit" class="btn primary" id="submitBtn">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 管理模式（授权）弹窗 -->
+  <div class="overlay" id="authOverlay" hidden>
+    <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <h2 id="authTitle">管理模式</h2>
+      <form id="authForm" novalidate>
+        <p class="auth-desc" id="authDesc"></p>
+        <label id="authOldWrap" hidden>
+          <span>当前密码</span>
+          <input id="auth-old" type="password" autocomplete="current-password">
+        </label>
+        <label id="authNewWrap" hidden>
+          <span id="authNewLabel">管理密码</span>
+          <input id="auth-new" type="password" autocomplete="current-password">
+        </label>
+        <label id="authConfirmWrap" hidden>
+          <span>确认密码</span>
+          <input id="auth-confirm" type="password" autocomplete="new-password">
+        </label>
+        <div class="modal-actions" id="authActions">
+          <button type="button" class="btn ghost" id="authCancel">取消</button>
+          <button type="submit" class="btn primary" id="authOk">确定</button>
+        </div>
+        <div class="auth-links" id="authLinks"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 轻提示 -->
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

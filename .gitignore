@@ -1,0 +1,14 @@
+# ===== 星遇导航 StarNav =====
+
+# 服务端数据（含密码哈希，切勿提交！）
+data.json
+data.json.tmp
+*.tmp
+cookie.txt
+
+# Node
+node_modules/
+
+# 系统文件
+Thumbs.db
+.DS_Store

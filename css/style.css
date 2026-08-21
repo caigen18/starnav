@@ -110,7 +110,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 26px 0 30px;
+  padding: 24px 0 18px;
 }
 
 .logo { display: flex; align-items: center; gap: 14px; }
@@ -330,21 +330,24 @@ body {
 }
 .chip.active .cnt { background: rgba(6, 16, 31, 0.18); color: inherit; }
 
-/* ---- 页面标签栏（自定义页面） ---- */
+/* ---- 页面标签栏（自定义页面）----
+   下划线式标签（类浏览器标签页）：与分类胶囊（圆角药丸）明显区分
+   ------------------------------------------------------------ */
 
 .pages-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 24px;
+  gap: 12px;
+  margin-top: 20px;
+  padding-bottom: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 .pages-tabs {
   position: relative;
   display: flex;
-  gap: 8px;
+  gap: 2px;
   overflow-x: auto;
   scrollbar-width: none;
-  padding: 2px;
   flex: 1;
   min-width: 0;
 }
@@ -354,27 +357,36 @@ body {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   flex-shrink: 0;
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 500;
+  padding: 10px 14px 11px;
+  font-size: 13.5px;
+  font-weight: 600;
   color: var(--text-1);
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
+  background: transparent;
+  border: 0;
+  border-radius: 10px 10px 0 0;
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
-  transition: transform 0.2s, background 0.25s, color 0.25s, border-color 0.25s, box-shadow 0.25s;
+  transition: color 0.25s, background 0.25s;
 }
-.page-tab:hover { transform: translateY(-2px); color: var(--text-0); border-color: rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.09); }
+.page-tab:hover { color: #fff; background: rgba(255, 255, 255, 0.06); }
 .page-tab.active {
-  color: #06101f;
-  font-weight: 700;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+/* 激活标签的渐变下划线（压住栏底线，像浏览器当前标签） */
+.page-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
   background: var(--grad-main);
-  border-color: transparent;
-  box-shadow: 0 10px 26px -8px rgba(34, 211, 238, 0.5);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent-1) 60%, transparent);
 }
 .page-ico { font-size: 15px; line-height: 1; }
 .page-cnt {
@@ -386,7 +398,7 @@ body {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.1);
 }
-.page-tab.active .page-cnt { background: rgba(6, 16, 31, 0.16); }
+.page-tab.active .page-cnt { background: rgba(255, 255, 255, 0.16); }
 
 .page-ops { display: none; align-items: center; gap: 2px; margin-left: 2px; }
 .page-tab:hover .page-ops { display: flex; }
@@ -419,17 +431,17 @@ body {
 
 .page-add {
   flex-shrink: 0;
-  width: 36px; height: 36px;
+  width: 34px; height: 34px;
   display: grid; place-items: center;
-  font-size: 16px;
-  color: var(--text-1);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px dashed rgba(255, 255, 255, 0.28);
-  border-radius: 12px;
+  font-size: 15px;
+  color: var(--text-2);
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
   cursor: pointer;
   transition: color 0.25s, border-color 0.25s, background 0.25s, transform 0.25s;
 }
-.page-add:hover { color: #fff; border-color: rgba(34, 211, 238, 0.7); background: rgba(34, 211, 238, 0.12); transform: rotate(90deg); }
+.page-add:hover { color: #fff; border-color: rgba(34, 211, 238, 0.7); background: rgba(34, 211, 238, 0.1); transform: rotate(90deg); }
 
 /* ---- 分类 + 排序工具栏 ---- */
 
@@ -1030,8 +1042,29 @@ mark {
   -webkit-text-fill-color: var(--c-main);
 }
 
-/* 页面标签 / 分类 / 排序 */
-[data-theme="classic"] .page-tab,
+/* 页面标签（下划线式）/ 分类 / 排序 */
+[data-theme="classic"] .pages-bar { border-bottom-color: #d5d5d5; }
+[data-theme="classic"] .page-tab {
+  color: #666;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+[data-theme="classic"] .page-tab:hover {
+  color: var(--c-main);
+  background: rgba(0, 0, 0, 0.04);
+  transform: none;
+}
+[data-theme="classic"] .page-tab.active {
+  color: var(--c-main);
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.05);
+}
+[data-theme="classic"] .page-tab.active::after {
+  background: var(--c-main);
+  box-shadow: none;
+}
+
 [data-theme="classic"] .chip,
 [data-theme="classic"] .sort-btn {
   color: #333;
@@ -1039,7 +1072,6 @@ mark {
   border: 1px solid #d5d5d5;
   border-radius: 0;
 }
-[data-theme="classic"] .page-tab:hover,
 [data-theme="classic"] .chip:hover,
 [data-theme="classic"] .sort-btn:hover {
   color: var(--c-main);
@@ -1047,7 +1079,6 @@ mark {
   border-color: var(--c-main);
   transform: none;
 }
-[data-theme="classic"] .page-tab.active,
 [data-theme="classic"] .chip.active,
 [data-theme="classic"] .sort-btn.active {
   color: #fff;
@@ -1058,9 +1089,10 @@ mark {
 }
 [data-theme="classic"] .chip .cnt,
 [data-theme="classic"] .page-cnt { background: #eee; color: #666; }
-[data-theme="classic"] .chip.active .cnt,
-[data-theme="classic"] .page-tab.active .page-cnt { background: rgba(255, 255, 255, 0.28); color: #fff; }
+[data-theme="classic"] .chip.active .cnt { background: rgba(255, 255, 255, 0.28); color: #fff; }
+[data-theme="classic"] .page-tab.active .page-cnt { background: color-mix(in srgb, var(--c-main) 14%, transparent); color: var(--c-main); }
 [data-theme="classic"] .page-op:hover { background: rgba(0, 0, 0, 0.08); }
+[data-theme="classic"] .page-rename { background: #fff; border-color: #ccc; color: #333; }
 [data-theme="classic"] .page-add {
   color: #666;
   background: #fff;

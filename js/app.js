@@ -103,6 +103,20 @@ const DEFAULT_LINKS = [
   { title: '语雀', url: 'https://www.yuque.com', desc: '蚂蚁集团知识库，结构化写作利器', category: '效率办公', icon: '🐦' },
   { title: '幕布', url: 'https://mubu.com', desc: '大纲笔记工具，思维可视化', category: '效率办公', icon: '📋' },
   { title: '石墨文档', url: 'https://shimo.im', desc: '云端协同办公，轻量高效', category: '效率办公', icon: '🪨' },
+
+  // 🪙 币圈
+  { title: '币安 Binance', url: 'https://www.binance.com/zh-CN', desc: '全球最大的加密货币交易平台', category: '币圈', icon: '🟡' },
+  { title: '欧易 OKX', url: 'https://www.okx.com/zh-hans', desc: '全球领先的数字资产交易平台', category: '币圈', icon: '🟠' },
+  { title: 'CoinGecko', url: 'https://www.coingecko.com/zh', desc: '加密货币行情与数据聚合平台', category: '币圈', icon: '🦎' },
+  { title: 'CoinMarketCap', url: 'https://coinmarketcap.com/zh', desc: '全球加密货币市值排行与数据', category: '币圈', icon: '📈' },
+  { title: 'Etherscan', url: 'https://etherscan.io', desc: '以太坊区块浏览器，链上数据查询', category: '币圈', icon: '🔷' },
+  { title: 'Blockchain.com', url: 'https://www.blockchain.com/explorer', desc: '比特币区块浏览器与钱包', category: '币圈', icon: '⛓️' },
+  { title: 'DeBank', url: 'https://debank.com', desc: 'DeFi 资产聚合与链上数据', category: '币圈', icon: '🏦' },
+  { title: 'Dune', url: 'https://dune.com', desc: '链上数据分析与可视化看板', category: '币圈', icon: '🐋' },
+  { title: 'TokenInsight', url: 'https://www.tokeninsight.com/zh', desc: '加密市场数据与研究报告', category: '币圈', icon: '🔍' },
+  { title: '慢雾 SlowMist', url: 'https://www.slowmist.com', desc: '区块链安全审计与威胁情报', category: '币圈', icon: '🛡️' },
+  { title: '律动 BlockBeats', url: 'https://www.theblockbeats.info', desc: '加密货币行业新闻资讯', category: '币圈', icon: '📰' },
+  { title: 'PANews', url: 'https://www.panewslab.com', desc: '区块链行业中文媒体', category: '币圈', icon: '📡' },
 ];
 
 /* ---------- 数据层（多页面模型，服务端持久化 + 本地缓存） ---------- */
@@ -206,6 +220,25 @@ async function saveData() {
 
 const activePage = () => data.pages.find((p) => p.id === data.activePage) || data.pages[0];
 const links = () => activePage().links;
+
+/* 合并新增的内置站点（当前用于币圈分类）：
+   按 URL 去重，把"已有数据里不存在"的默认站点追加到当前页面，
+   避免老用户升级后看不到新分类，也不会重复添加 */
+function mergeNewDefaults() {
+  const candidates = DEFAULT_LINKS.filter((l) => l.category === '币圈');
+  const known = new Set();
+  for (const p of data.pages) for (const l of p.links) known.add(l.url);
+  const fresh = candidates.filter((l) => !known.has(l.url));
+  if (!fresh.length) return false;
+  const target = activePage() || data.pages[0];
+  if (!target) return false;
+  const now = Date.now();
+  target.links.push(...fresh.map((l, i) => ({
+    ...l, id: uid(), visits: 0, locked: true,
+    createdAt: now - (fresh.length - 1 - i) * 1000,
+  })));
+  return true;
+}
 
 /* ---------- 状态 ---------- */
 const state = {
@@ -1310,9 +1343,12 @@ async function boot() {
     }
     if (data.theme === 'classic' && state.theme !== 'classic') state.theme = 'classic';
     state.palette = data.palette || {};
+    // 老数据自动补入新增的内置站点（如币圈分类），并持久化
+    if (mergeNewDefaults()) await saveData();
   } catch {
     $('#connBanner').hidden = false;
     if (!data || !data.pages.length) data = buildSeed();
+    mergeNewDefaults();
     toast('⚠️ 无法连接服务器，当前为离线浏览（改动不会保存）');
   }
   booted = true;

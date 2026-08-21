@@ -245,7 +245,7 @@ const state = {
   cat: '全部',
   q: '',
   editingId: null,
-  sort: 'recent',
+  sort: 'visits', // 默认按访问热度排序（点击多的站点排前面）
   theme: (data && data.theme === 'classic') ? 'classic' : 'cosmic',
   palette: (data && data.palette) || {}, // 每种布局各自的配色：{ cosmic: 'aurora', classic: 'hao' }
 };

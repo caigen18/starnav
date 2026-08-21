@@ -88,3 +88,11 @@ node server.js
 - 也可以手动填表情符号（如 🐳）或图片网址作为图标；
 - 分类输入框支持选择已有分类，或直接输入创建新分类；
 - 更换端口：`PORT=8080 node server.js`。
+
+## 📊 流量统计（本地，不入库）
+
+统计代码放在 `js/analytics.local.js`——该文件已加入 `.gitignore`，**不会上传到 GitHub**（防止站点 ID 泄露、避免污染公开仓库）。
+
+- 接入 / 更换统计：编辑 `js/analytics.local.js` 里的统计初始化参数即可；
+- 移除统计：删除该文件，并删掉 `index.html` 末尾对应的一行 `<script src="js/analytics.local.js"></script>`；
+- 注意：新克隆的仓库里没有此文件，统计不会生效——这是预期行为（统计只在你的本地部署上运行）。

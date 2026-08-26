@@ -14,6 +14,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const zlib = require('zlib');
 
 const ROOT = __dirname;
 const DATA_FILE = path.join(ROOT, 'data.json');
@@ -120,10 +121,25 @@ const cookieHeader = (token, maxAge) =>
 loadSessions(); // 恢复持久化的会话（重启不丢）
 
 /* ---------- 工具 ---------- */
+/* gzip 压缩：文本类响应显著减小体积（CSS/JS/JSON 可压到 1/5~1/8） */
+function gzipBody(req, buf) {
+  if (buf.length > 128 && /\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
+    return zlib.gzipSync(buf);
+  }
+  return buf;
+}
 function json(res, obj, status = 200, extra = {}) {
   const body = JSON.stringify(obj);
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', ...extra });
-  res.end(body);
+  const buf = Buffer.from(body, 'utf8');
+  const out = gzipBody({ headers: res.req.headers }, buf);
+  const headers = {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Vary': 'Accept-Encoding',
+    ...extra,
+  };
+  if (out.length !== buf.length) headers['Content-Encoding'] = 'gzip';
+  res.writeHead(status, headers);
+  res.end(out);
 }
 function readBody(req, limit = 2 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
@@ -309,12 +325,16 @@ function serveStatic(req, res, url) {
     }
     fs.readFile(file, (err2, buf) => {
       if (err2) { res.writeHead(404); return res.end('Not Found'); }
-      res.writeHead(200, {
+      const out = gzipBody(req, buf);
+      const headers = {
         'Content-Type': MIME[path.extname(file)] || 'application/octet-stream',
         'Cache-Control': 'no-cache', // 每次都带 ETag 校验，命中则 304，节省带宽
         'ETag': etag,
-      });
-      res.end(buf);
+        'Vary': 'Accept-Encoding',
+      };
+      if (out.length !== buf.length) headers['Content-Encoding'] = 'gzip';
+      res.writeHead(200, headers);
+      res.end(out);
     });
   });
 }

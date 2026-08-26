@@ -8,6 +8,11 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%AD%3C/text%3E%3C/svg%3E">
   <!-- 不使用外部字体（Google Fonts 在国内常超时阻塞渲染），全部采用系统字体，秒开 -->
   <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://sdk.51.la">
+  <!-- defer：脚本与 CSS 并行下载，不阻塞渲染，按顺序执行 -->
+  <script src="js/app.js" defer></script>
+  <!-- 本地流量统计（js/analytics.local.js 不入库，如不需要可删除本行） -->
+  <script src="js/analytics.local.js" defer></script>
 </head>
 <body>
 
@@ -174,10 +179,5 @@
 
   <!-- 轻提示 -->
   <div class="toasts" id="toasts" aria-live="polite"></div>
-
-  <script src="js/app.js"></script>
-
-  <!-- 本地流量统计（js/analytics.local.js 不入库，如不需要可删除本行）；defer 不阻塞渲染 -->
-  <script src="js/analytics.local.js" defer></script>
 </body>
 </html>

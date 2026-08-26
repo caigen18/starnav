@@ -633,12 +633,10 @@ function classicLinkHTML(l, manual) {
 }
 
 function miniIcon(l) {
-  // 经典风格行内小图标：同一套真实图标规则（根目录 favicon.ico → Google s2 → emoji/字母）
+  // 经典风格行内小图标：同样直接调用本地 /api/icon，失败回退 emoji / 字母
   const emoji = (l.icon && EMOJI_RE.test(l.icon)) ? l.icon : '';
-  const domain = encodeURIComponent(getDomain(l.url));
-  const direct = (l.icon && /^https?:\/\//i.test(l.icon)) ? l.icon : `https://${getDomain(l.url)}/favicon.ico`;
-  const s2 = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-  return `<img class="cl-icon cl-img" src="${esc(direct)}" alt="" loading="lazy" data-next="${esc(s2)}" data-letter="${esc(l.title)}" data-emoji="${esc(emoji)}" onerror="window.__iconFallback && window.__iconFallback(this)">`;
+  const fav = (l.icon && /^https?:\/\//i.test(l.icon)) ? l.icon : `/api/icon?u=${encodeURIComponent(l.url)}`;
+  return `<img class="cl-icon cl-img" src="${esc(fav)}" alt="" loading="lazy" data-letter="${esc(l.title)}" data-emoji="${esc(emoji)}" onerror="window.__iconFallback && window.__iconFallback(this)">`;
 }
 
 function cardHTML(l, delay, manual) {
@@ -675,31 +673,23 @@ function cardHTML(l, delay, manual) {
   </article>`;
 }
 
-/* 真实图标获取规则（海外服务器直连，无需代理）：
+/* 真实图标获取（服务器自动下载并存本地，前端直接调用本地接口）：
    1) 用户自定义图标网址 → 直接使用
-   2) 站点根目录 /favicon.ico → 最真实的官方图标
-   3) Google s2 favicon 服务兜底（覆盖几乎所有站点）
-   4) 仍失败 → emoji（内置站点）/ 渐变字母头像 */
+   2) 否则 → 请求 /api/icon?u=网址（服务器已后台下载缓存，直接返回本地文件）
+   3) 仍失败 → emoji（内置站点）/ 渐变字母头像 */
 function iconHTML(l) {
   // 用户手动填的图片网址：直接使用
   if (l.icon && /^https?:\/\//i.test(l.icon)) {
     return `<img class="icon icon-img" src="${esc(l.icon)}" alt="" loading="lazy" data-letter="${esc(l.title)}" data-emoji="" onerror="window.__iconFallback && window.__iconFallback(this)">`;
   }
   const emoji = (l.icon && EMOJI_RE.test(l.icon)) ? l.icon : '';
-  const domain = encodeURIComponent(getDomain(l.url));
-  const direct = `https://${getDomain(l.url)}/favicon.ico`;
-  const s2 = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-  return `<img class="icon icon-img" src="${esc(direct)}" alt="" loading="lazy" data-next="${esc(s2)}" data-letter="${esc(l.title)}" data-emoji="${esc(emoji)}" onerror="window.__iconFallback && window.__iconFallback(this)">`;
+  const fav = `/api/icon?u=${encodeURIComponent(l.url)}`;
+  return `<img class="icon icon-img" src="${fav}" alt="" loading="lazy" data-letter="${esc(l.title)}" data-emoji="${esc(emoji)}" onerror="window.__iconFallback && window.__iconFallback(this)">`;
 }
 
-/* 图标加载失败时的多级回退：
-   先切换到 data-next（Google s2），再失败才用 emoji / 渐变字母头像 */
+/* 图标加载失败时回退：优先 emoji（内置站点），否则渐变文字头像；
+   经典风格的小图标（cl-img）回退为对应的小尺寸样式 */
 window.__iconFallback = (img) => {
-  if (img.dataset.next) {
-    img.src = img.dataset.next;
-    img.dataset.next = ''; // 防止失败后无限循环
-    return;
-  }
   const emoji = img.dataset.emoji;
   const classic = img.classList.contains('cl-img');
   if (emoji) {

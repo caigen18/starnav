@@ -11,6 +11,7 @@
      非授权请求即使伪造数据，也只读内容也会被服务器原样保留
    ============================================================ */
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -290,6 +291,7 @@ async function handleApi(req, res, url) {
     const applyData = (clientData) => {
       data = { ...clientData, adminPassword: data.adminPassword, sessions: data.sessions };
       saveData(data);
+      queueMissingIcons(); // 数据变化后自动补齐新站点的图标
       return data;
     };
 
@@ -307,7 +309,183 @@ async function handleApi(req, res, url) {
     return json(res, applyData(merged.data));
   }
 
+  /* 站点图标：本地已下载则直接返回；缺失则即时下载并落盘（前端直接调用本地接口） */
+  if (url.pathname === '/api/icon' && req.method === 'GET') {
+    const host = getHost(url.searchParams.get('u') || '');
+    if (!host) return json(res, { error: 'bad_url' }, 400);
+    fs.mkdirSync(ICONS_DIR, { recursive: true });
+    let file = iconFileFor(host);
+    if (!file && !isFailed(host)) {
+      const downloaded = await downloadIconOnce(host);
+      file = downloaded && fs.existsSync(downloaded) ? downloaded : null;
+    }
+    if (!file) return json(res, { error: 'no_icon' }, 404);
+    const buf = fs.readFileSync(file);
+    const ext = path.extname(file).slice(1);
+    const mime = MIME['.' + ext] || 'image/png';
+    const etag = `"${buf.length}-${crypto.createHash('md5').update(buf).digest('hex').slice(0, 8)}"`;
+    if (req.headers['if-none-match'] === etag) {
+      res.writeHead(304, { ETag: etag });
+      return res.end();
+    }
+    res.writeHead(200, {
+      'Content-Type': mime,
+      'Cache-Control': 'public, max-age=86400',
+      'ETag': etag,
+    });
+    return res.end(buf);
+  }
+
   return json(res, { error: 'not_found' }, 404);
+}
+
+/* ---------- 自动下载图标（存本地，前端直接调用） ---------- */
+/* 服务器在启动时与数据更新后，后台自动抓取各站点真实图标并保存到 icons/ 目录；
+   前端统一请求 /api/icon?u=网址，命中本地文件直接返回，浏览器不直连第三方图标源。
+   抓取顺序：站点根目录 /favicon.ico → Google s2 favicon 兜底。 */
+
+const ICONS_DIR = path.join(ROOT, 'icons');
+const ICON_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+
+/* 基础防 SSRF：仅允许公网 http/https，拒绝本机 / 内网地址 */
+function isSafeHost(host) {
+  if (!host) return false;
+  const h = host.toLowerCase();
+  if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') || h.endsWith('.internal')) return false;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) {
+    const p = h.split('.').map(Number);
+    if (p.some((n) => n > 255)) return false;
+    if (p[0] === 127 || p[0] === 10 || p[0] === 0) return false;
+    if (p[0] === 192 && p[1] === 168) return false;
+    if (p[0] === 172 && p[1] >= 16 && p[1] <= 31) return false;
+    if (p[0] === 169 && p[1] === 254) return false;
+    return true;
+  }
+  return true;
+}
+
+const getHost = (urlStr) => {
+  try { return new URL(urlStr).hostname.replace(/^www\./, '').toLowerCase(); }
+  catch { return null; }
+};
+
+/* 抓取 URL（限时 / 限大小 / 限重定向次数），返回 { type, data } 或 null */
+function httpGetRaw(urlStr, { timeout = 4000, maxBytes = 512 * 1024, redirects = 3 } = {}) {
+  return new Promise((resolve) => {
+    let u;
+    try { u = new URL(urlStr); } catch { return resolve(null); }
+    if (!['http:', 'https:'].includes(u.protocol) || !isSafeHost(u.hostname)) return resolve(null);
+    const lib = u.protocol === 'https:' ? https : http;
+    const req = lib.get(u, { headers: { 'User-Agent': ICON_UA, 'Accept': '*/*' }, timeout }, (res) => {
+      const status = res.statusCode || 0;
+      if (status >= 300 && status < 400 && res.headers.location && redirects > 0) {
+        res.resume();
+        let next;
+        try { next = new URL(res.headers.location, u).href; } catch { return resolve(null); }
+        return resolve(httpGetRaw(next, { timeout, maxBytes, redirects: redirects - 1 }));
+      }
+      if (status !== 200) { res.resume(); return resolve(null); }
+      const type = String(res.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+      const chunks = [];
+      let size = 0;
+      res.on('data', (c) => {
+        size += c.length;
+        if (size > maxBytes) { req.destroy(); return resolve(null); }
+        chunks.push(c);
+      });
+      res.on('end', () => resolve({ type, data: Buffer.concat(chunks) }));
+      res.on('error', () => resolve(null));
+    });
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+    req.on('error', () => resolve(null));
+  });
+}
+
+/* 根据文件头嗅探真实图片类型，决定保存后缀 */
+function sniffExt(buf, type) {
+  if (buf.length > 4) {
+    if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) return 'png';
+    if (buf[0] === 0xFF && buf[1] === 0xD8) return 'jpg';
+    if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46) return 'webp';
+    if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) return 'gif';
+    if (buf[0] === 0x00 && buf[1] === 0x00 && buf[2] === 0x01 && buf[3] === 0x00) return 'ico';
+  }
+  if (type.includes('svg')) return 'svg';
+  if (type.startsWith('image/png')) return 'png';
+  if (type.startsWith('image/x-icon') || type.startsWith('image/vnd.microsoft.icon')) return 'ico';
+  if (type.startsWith('image/jpeg')) return 'jpg';
+  if (type.startsWith('image/webp')) return 'webp';
+  return 'png';
+}
+
+const hostHash = (host) => crypto.createHash('md5').update(host).digest('hex');
+
+function iconFileFor(host) {
+  const h = hostHash(host);
+  try {
+    const f = fs.readdirSync(ICONS_DIR).find((n) => n.startsWith(h + '.'));
+    return f ? path.join(ICONS_DIR, f) : null;
+  } catch { return null; }
+}
+
+const iconFailed = new Map();   // host -> 失败时间；30 分钟后自动重试，避免瞬时故障被永久记录
+const iconInFlight = new Map(); // 并发去重
+const ICON_RETRY_MS = 30 * 60 * 1000;
+const isFailed = (host) => iconFailed.has(host) && (Date.now() - iconFailed.get(host)) < ICON_RETRY_MS;
+
+async function downloadIcon(host) {
+  const direct = `https://${host}/favicon.ico`;
+  const s2 = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
+  for (const url of [direct, s2]) {
+    const res = await httpGetRaw(url);
+    if (res && res.data.length > 0 && res.type.startsWith('image/')) {
+      const ext = sniffExt(res.data, res.type);
+      const file = path.join(ICONS_DIR, `${hostHash(host)}.${ext}`);
+      try {
+        fs.writeFileSync(file, res.data);
+        iconFailed.delete(host);
+        return file;
+      } catch { return null; }
+    }
+  }
+  iconFailed.set(host, Date.now());
+  return null;
+}
+
+function downloadIconOnce(host) {
+  if (iconInFlight.has(host)) return iconInFlight.get(host);
+  const p = downloadIcon(host).finally(() => iconInFlight.delete(host));
+  iconInFlight.set(host, p);
+  return p;
+}
+
+/* 后台自动补齐：启动时与数据更新后，为所有缺图标的站点排队下载（节流） */
+const iconQueue = [];
+let iconPumping = false;
+
+function queueMissingIcons() {
+  for (const p of data.pages) for (const l of p.links) {
+    const host = getHost(l.url);
+    if (host && !isFailed(host) && !iconFileFor(host) && !iconQueue.includes(host)) {
+      iconQueue.push(host);
+    }
+  }
+  pumpIconQueue();
+}
+
+async function pumpIconQueue() {
+  if (iconPumping) return;
+  iconPumping = true;
+  try {
+    fs.mkdirSync(ICONS_DIR, { recursive: true });
+    while (iconQueue.length) {
+      const host = iconQueue.shift();
+      if (!iconFileFor(host) && !isFailed(host)) await downloadIconOnce(host);
+      await new Promise((r) => setTimeout(r, 200)); // 节流，避免打爆小站点
+    }
+  } finally {
+    iconPumping = false;
+  }
 }
 
 /* ---------- 静态文件（ETag 缓存校验：内容没变则 304，不重传文件） ---------- */
@@ -356,4 +534,6 @@ server.listen(PORT, () => {
   console.log(`✦ 星遇导航已启动：http://localhost:${PORT}`);
   console.log(`  管理入口（隐藏的模式按钮）：http://localhost:${PORT}/?admin=starnav`);
   console.log(`  数据文件：${DATA_FILE}`);
+  // 启动后自动下载所有站点图标（后台、节流）
+  setTimeout(() => { fs.mkdirSync(ICONS_DIR, { recursive: true }); queueMissingIcons(); }, 800);
 });

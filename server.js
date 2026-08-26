@@ -183,39 +183,37 @@ function sanitizeData(d) {
   };
 }
 
-/* 非授权写入：只读内容强制保留（不可修改 / 不可删除 / 不可新增只读标记） */
+/* 非授权写入：访客只能【添加】新站点——
+   已有站点（无论是否只读）不可修改 / 删除 / 重排，页面不可删除。
+   即使伪造请求，已有内容也会被服务器原样保留，仅允许追加新内容 */
 function mergeForVisitor(incoming) {
   const out = { pages: [], theme: incoming.theme, activePage: incoming.activePage, palette: incoming.palette };
-  const storedLinks = new Map();
-  for (const p of data.pages) for (const l of p.links) storedLinks.set(l.id, l);
 
   for (const sp of data.pages) {
     const ip = incoming.pages.find((p) => p.id === sp.id);
     if (!ip) {
-      if (sp.links.some((l) => l.locked)) return { error: 'locked_page', page: sp.name };
-      continue; // 无只读内容的页面允许删除
+      out.pages.push(sp); // 访客不能删除页面：原样保留
+      continue;
     }
-    const lockedSeq = sp.links.filter((l) => l.locked);
-    const incomingIds = new Set(ip.links.map((l) => l.id));
+    const incomingById = new Map(ip.links.map((l) => [l.id, l]));
     const merged = [];
-    for (const l of ip.links) {
-      const sl = storedLinks.get(l.id);
-      if (sl && sl.locked) {
-        // 只读内容：原样保留（仅访问热度允许变化）
-        merged.push({ ...sl, visits: Number.isFinite(l.visits) ? l.visits : sl.visits });
-      } else {
-        merged.push({ ...l, locked: false }); // 非授权不能新增只读标记
-      }
+    const seen = new Set();
+    // 已有站点按存储顺序原样保留（仅访问热度允许变化），访客不可改删/重排
+    for (const sl of sp.links) {
+      const il = incomingById.get(sl.id);
+      merged.push(il ? { ...sl, visits: Number.isFinite(il.visits) ? il.visits : sl.visits } : sl);
+      seen.add(sl.id);
     }
-    for (const sl of lockedSeq) {
-      if (!incomingIds.has(sl.id)) merged.push(sl); // 补回被删除的只读链接（保持存储顺序）
+    // 访客新增的站点追加在末尾（强制非只读）
+    for (const il of ip.links) {
+      if (!seen.has(il.id)) { merged.push({ ...il, locked: false }); seen.add(il.id); }
     }
     out.pages.push({ ...ip, links: merged });
   }
-  // 新增的页面（服务器上不存在）
+  // 访客新建的页面
   for (const ip of incoming.pages) {
     if (!data.pages.some((p) => p.id === ip.id)) {
-      out.pages.push({ ...ip, links: ip.links.map((l) => ({ ...l, locked: false })) });
+      out.pages.push({ ...ip, links: (ip.links || []).map((l) => ({ ...l, locked: false })) });
     }
   }
   return { data: out };

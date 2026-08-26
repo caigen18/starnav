@@ -805,8 +805,8 @@ function setAdmin(v) {
   $('#lockBtn').title = admin ? '管理模式（已授权）' : '管理模式：解锁后可修改只读内容';
 }
 
-/* 是否可修改某个站点（只读内容需授权） */
-const canModify = (l) => !l.locked || admin;
+/* 是否可修改某个站点（访客只能添加新站点，不能改删/重排任何已有站点） */
+const canModify = () => admin;
 
 $('#lockBtn').addEventListener('click', () => {
   if (!booted) { toast('正在连接服务器，请稍候…'); return; }
@@ -937,7 +937,7 @@ const fCat = $('#f-cat');
 const fIcon = $('#f-icon');
 
 function openModal(item) {
-  if (item && item.locked && !admin) { toast('该站点为只读内容，需先进入管理模式'); return; }
+  if (item && !admin) { toast('已有站点仅管理模式可修改，访客可以添加新站点'); return; }
   state.editingId = item ? item.id : null;
   $('#modalTitle').textContent = item ? '编辑站点' : '添加站点';
   $('#submitBtn').textContent = item ? '保存修改' : '添加';
@@ -1045,10 +1045,10 @@ let lastDeleted = null;
 let undoTimer = null;
 
 function deleteLink(id) {
+  if (!admin) { toast('访客不能删除已有站点'); return; }
   const list = links();
   const i = list.findIndex((x) => x.id === id);
   if (i < 0) return;
-  if (list[i].locked && !admin) { toast('只读内容，需进入管理模式后才能删除'); return; }
   const [item] = list.splice(i, 1);
   saveData();
   renderAll();
@@ -1098,11 +1098,11 @@ grid.addEventListener('click', (e) => {
 
 /* 手动排序：上移 / 下移 */
 function moveLink(id, dir) {
+  if (!admin) { toast('访客不能调整站点顺序'); return; }
   const list = links();
   const i = list.findIndex((x) => x.id === id);
   const j = i + dir;
   if (i < 0 || j < 0 || j >= list.length) return;
-  if (list[i].locked && !admin) { toast('只读内容，需进入管理模式后才能调整顺序'); return; }
   [list[i], list[j]] = [list[j], list[i]];
   saveData();
   renderGrid(false);
@@ -1244,13 +1244,10 @@ let lastDeletedPage = null;
 let pageUndoTimer = null;
 
 function deletePage(id) {
+  if (!admin) { toast('页面管理（含删除）仅限管理模式'); return; }
   if (data.pages.length <= 1) { toast('至少保留一个页面'); return; }
   const i = data.pages.findIndex((p) => p.id === id);
   if (i < 0) return;
-  if (data.pages[i].links.some((l) => l.locked) && !admin) {
-    toast('该页面包含只读内容，需进入管理模式后才能删除');
-    return;
-  }
   const [page] = data.pages.splice(i, 1);
   if (data.activePage === id) {
     data.activePage = data.pages[Math.min(i, data.pages.length - 1)].id;

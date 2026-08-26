@@ -230,6 +230,58 @@ const DEFAULT_LINKS = [
   { title: 'NVIDIA', url: 'https://www.nvidia.com', desc: '英伟达官网', category: '全球 Top 100' },
   { title: 'Adobe', url: 'https://www.adobe.com', desc: 'Adobe 官网', category: '全球 Top 100' },
   { title: 'Dropbox', url: 'https://www.dropbox.com', desc: '云盘同步', category: '全球 Top 100' },
+
+  // 🇨🇳 中国 Top 50（按国内访问量口径；已跳过在全球 Top 100 与其他分类收录过的站点）
+  { title: '拼多多', url: 'https://www.pinduoduo.com', desc: '电商购物', category: '中国 Top 50' },
+  { title: '今日头条', url: 'https://www.toutiao.com', desc: '资讯推荐', category: '中国 Top 50' },
+  { title: '快手', url: 'https://www.kuaishou.com', desc: '短视频直播', category: '中国 Top 50' },
+  { title: '美团', url: 'https://www.meituan.com', desc: '本地生活 / 外卖', category: '中国 Top 50' },
+  { title: '腾讯视频', url: 'https://v.qq.com', desc: '在线视频', category: '中国 Top 50' },
+  { title: '优酷', url: 'https://www.youku.com', desc: '在线视频', category: '中国 Top 50' },
+  { title: '搜狐', url: 'https://www.sohu.com', desc: '门户资讯', category: '中国 Top 50' },
+  { title: '东方财富', url: 'https://www.eastmoney.com', desc: '财经资讯', category: '中国 Top 50' },
+  { title: '百度贴吧', url: 'https://tieba.baidu.com', desc: '兴趣社区', category: '中国 Top 50' },
+  { title: '百度百科', url: 'https://baike.baidu.com', desc: '在线百科', category: '中国 Top 50' },
+  { title: 'CSDN', url: 'https://www.csdn.net', desc: '技术社区', category: '中国 Top 50' },
+  { title: '携程', url: 'https://www.ctrip.com', desc: '旅行预订', category: '中国 Top 50' },
+  { title: '汽车之家', url: 'https://www.autohome.com.cn', desc: '汽车资讯', category: '中国 Top 50' },
+  { title: '芒果TV', url: 'https://www.mgtv.com', desc: '在线视频', category: '中国 Top 50' },
+  { title: 'QQ空间', url: 'https://qzone.qq.com', desc: '社交空间', category: '中国 Top 50' },
+  { title: '微信', url: 'https://weixin.qq.com', desc: '即时通讯', category: '中国 Top 50' },
+  { title: '4399小游戏', url: 'https://www.4399.com', desc: '小游戏平台', category: '中国 Top 50' },
+  { title: '饿了么', url: 'https://www.ele.me', desc: '外卖订餐', category: '中国 Top 50' },
+  { title: '大众点评', url: 'https://www.dianping.com', desc: '本地生活点评', category: '中国 Top 50' },
+  { title: '高德地图', url: 'https://www.amap.com', desc: '地图导航', category: '中国 Top 50' },
+  { title: '百度地图', url: 'https://map.baidu.com', desc: '地图导航', category: '中国 Top 50' },
+  { title: '58同城', url: 'https://www.58.com', desc: '分类信息', category: '中国 Top 50' },
+  { title: '智联招聘', url: 'https://www.zhaopin.com', desc: '招聘求职', category: '中国 Top 50' },
+  { title: 'BOSS直聘', url: 'https://www.zhipin.com', desc: '招聘求职', category: '中国 Top 50' },
+  { title: '前程无忧', url: 'https://www.51job.com', desc: '招聘求职', category: '中国 Top 50' },
+  { title: '去哪儿', url: 'https://www.qunar.com', desc: '旅行预订', category: '中国 Top 50' },
+  { title: '马蜂窝', url: 'https://www.mafengwo.cn', desc: '旅行攻略', category: '中国 Top 50' },
+  { title: '贝壳找房', url: 'https://www.ke.com', desc: '房产交易', category: '中国 Top 50' },
+  { title: '安居客', url: 'https://www.anjuke.com', desc: '房产信息', category: '中国 Top 50' },
+  { title: '凤凰网', url: 'https://www.ifeng.com', desc: '新闻资讯', category: '中国 Top 50' },
+  { title: '澎湃新闻', url: 'https://www.thepaper.cn', desc: '新闻资讯', category: '中国 Top 50' },
+  { title: '央视网', url: 'https://www.cctv.com', desc: '新闻资讯', category: '中国 Top 50' },
+  { title: '人民网', url: 'https://www.people.com.cn', desc: '新闻资讯', category: '中国 Top 50' },
+  { title: '新华网', url: 'https://www.xinhuanet.com', desc: '新闻资讯', category: '中国 Top 50' },
+  { title: '中关村在线', url: 'https://www.zol.com.cn', desc: '科技数码', category: '中国 Top 50' },
+  { title: 'IT之家', url: 'https://www.ithome.com', desc: '科技资讯', category: '中国 Top 50' },
+  { title: '36氪', url: 'https://36kr.com', desc: '创投科技', category: '中国 Top 50' },
+  { title: '虎嗅', url: 'https://www.huxiu.com', desc: '商业科技', category: '中国 Top 50' },
+  { title: '博客园', url: 'https://www.cnblogs.com', desc: '技术博客', category: '中国 Top 50' },
+  { title: '斗鱼', url: 'https://www.douyu.com', desc: '游戏直播', category: '中国 Top 50' },
+  { title: '虎牙', url: 'https://www.huya.com', desc: '游戏直播', category: '中国 Top 50' },
+  { title: '企查查', url: 'https://www.qcc.com', desc: '企业信息查询', category: '中国 Top 50' },
+  { title: '天眼查', url: 'https://www.tianyancha.com', desc: '企业信息查询', category: '中国 Top 50' },
+  { title: '搜狗', url: 'https://www.sogou.com', desc: '搜索引擎', category: '中国 Top 50' },
+  { title: '360', url: 'https://www.360.cn', desc: '安全 / 浏览器', category: '中国 Top 50' },
+  { title: '2345网址导航', url: 'https://www.2345.com', desc: '网址导航', category: '中国 Top 50' },
+  { title: '起点中文网', url: 'https://www.qidian.com', desc: '网络小说', category: '中国 Top 50' },
+  { title: '晋江文学城', url: 'https://www.jjwxc.net', desc: '言情小说', category: '中国 Top 50' },
+  { title: '番茄小说', url: 'https://fanqienovel.com', desc: '免费小说', category: '中国 Top 50' },
+  { title: '喜马拉雅', url: 'https://www.ximalaya.com', desc: '有声书 / 音频', category: '中国 Top 50' },
 ];
 
 /* ---------- 数据层（多页面模型，服务端持久化 + 本地缓存） ---------- */
@@ -334,11 +386,11 @@ async function saveData() {
 const activePage = () => data.pages.find((p) => p.id === data.activePage) || data.pages[0];
 const links = () => activePage().links;
 
-/* 合并新增的内置站点（币圈 / 国内 AI 助手 / 全球 Top 100 等）：
+/* 合并新增的内置站点（币圈 / 国内 AI 助手 / 全球 Top 100 / 中国 Top 50 等）：
    按 URL 去重，把"已有数据里不存在"的默认站点追加到当前页面，
    避免老用户升级后看不到新分类/新站点，也不会重复添加 */
 function mergeNewDefaults() {
-  const MERGE_CATEGORIES = ['币圈', 'AI 助手', '全球 Top 100'];
+  const MERGE_CATEGORIES = ['币圈', 'AI 助手', '全球 Top 100', '中国 Top 50'];
   const candidates = DEFAULT_LINKS.filter((l) => MERGE_CATEGORIES.includes(l.category));
   const known = new Set();
   for (const p of data.pages) for (const l of p.links) known.add(l.url);

@@ -633,9 +633,10 @@ function classicLinkHTML(l, manual) {
 }
 
 function miniIcon(l) {
-  if (l.icon && EMOJI_RE.test(l.icon)) return l.icon;
-  const ch = [...(l.title || '?')][0] || '?';
-  return `<span class="cl-letter" style="--g:${hashGradient(l.title)}">${esc(ch)}</span>`;
+  // 经典风格行内小图标：优先真实 favicon，失败回退 emoji / 字母
+  const emoji = (l.icon && EMOJI_RE.test(l.icon)) ? l.icon : '';
+  const fav = (l.icon && /^https?:\/\//i.test(l.icon)) ? l.icon : `/api/favicon?u=${encodeURIComponent(l.url)}`;
+  return `<img class="cl-icon cl-img" src="${esc(fav)}" alt="" loading="lazy" data-letter="${esc(l.title)}" data-emoji="${esc(emoji)}" onerror="window.__iconFallback && window.__iconFallback(this)">`;
 }
 
 function cardHTML(l, delay, manual) {
@@ -673,21 +674,32 @@ function cardHTML(l, delay, manual) {
 }
 
 function iconHTML(l) {
-  if (l.icon && EMOJI_RE.test(l.icon)) {
-    return `<span class="icon icon-emoji" aria-hidden="true">${l.icon}</span>`;
-  }
+  // 用户手动填的图片网址：直接使用
   if (l.icon && /^https?:\/\//i.test(l.icon)) {
-    return `<img class="icon icon-img" src="${esc(l.icon)}" alt="" loading="lazy" data-letter="${esc(l.title)}" onerror="window.__letter && window.__letter(this)">`;
+    return `<img class="icon icon-img" src="${esc(l.icon)}" alt="" loading="lazy" data-letter="${esc(l.title)}" data-emoji="" onerror="window.__iconFallback && window.__iconFallback(this)">`;
   }
-  const fav = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(getDomain(l.url))}&sz=64`;
-  return `<img class="icon icon-img" src="${fav}" alt="" loading="lazy" data-letter="${esc(l.title)}" onerror="window.__letter && window.__letter(this)">`;
+  // 优先获取真实站点图标（本站 /api/favicon 代理，国内直连可用）
+  const emoji = (l.icon && EMOJI_RE.test(l.icon)) ? l.icon : '';
+  const fav = `/api/favicon?u=${encodeURIComponent(l.url)}`;
+  return `<img class="icon icon-img" src="${fav}" alt="" loading="lazy" data-letter="${esc(l.title)}" data-emoji="${esc(emoji)}" onerror="window.__iconFallback && window.__iconFallback(this)">`;
 }
 
-/* favicon 加载失败时回退为渐变文字头像 */
-window.__letter = (img) => {
+/* 真实图标加载失败时回退：优先 emoji（内置站点），否则渐变文字头像；
+   经典风格的小图标（cl-img）回退为对应的小尺寸样式 */
+window.__iconFallback = (img) => {
+  const emoji = img.dataset.emoji;
+  const classic = img.classList.contains('cl-img');
+  if (emoji) {
+    const s = document.createElement('span');
+    s.className = classic ? 'cl-icon' : 'icon icon-emoji';
+    s.setAttribute('aria-hidden', 'true');
+    s.textContent = emoji;
+    img.replaceWith(s);
+    return;
+  }
   const t = img.dataset.letter || '?';
   const s = document.createElement('span');
-  s.className = 'icon icon-letter';
+  s.className = classic ? 'cl-icon cl-letter' : 'icon icon-letter';
   s.setAttribute('aria-hidden', 'true');
   s.style.setProperty('--g', hashGradient(t));
   s.textContent = [...t][0] || '?';

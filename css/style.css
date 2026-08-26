@@ -1146,6 +1146,7 @@ mark {
 .classic-link:hover { color: var(--c-main); background: #f5f5f5; text-decoration: underline; }
 
 .classic-link .cl-icon { flex-shrink: 0; width: 16px; text-align: center; font-size: 13px; line-height: 1; }
+.cl-img { width: 16px; height: 16px; object-fit: contain; vertical-align: middle; }
 .cl-letter {
   display: inline-block;
   height: 15px;

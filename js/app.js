@@ -504,10 +504,10 @@ function renderPages() {
       <span class="page-ico">${p.icon || '📄'}</span>
       <span class="page-name">${esc(p.name)}</span>
       <span class="page-cnt">${p.links.length}</span>
-      <span class="page-ops">
+      ${admin ? `<span class="page-ops">
         <i class="page-op" data-op="rename" title="重命名" role="button">✎</i>
         <i class="page-op page-op-del" data-op="delete" title="删除页面" role="button">✕</i>
-      </span>
+      </span>` : ''}
     </div>`).join('');
 
   // 让当前页标签保持在可视范围内
@@ -911,11 +911,18 @@ $('#authLinks').addEventListener('click', (e) => {
   if (act === 'back') {
     renderAuthMode(admin ? 'active' : (serverHasPassword ? 'login' : 'setup'));
   } else if (act === 'logout') {
-    api('/api/logout', { method: 'POST' });
-    setAdmin(false);
-    authOverlay.hidden = true;
-    renderGrid();
-    toast('已退出管理模式');
+    // 等待服务器确认登出成功后再提示；sendBeacon 兜底防"退出后立刻刷新"丢失请求
+    navigator.sendBeacon && navigator.sendBeacon('/api/logout');
+    api('/api/logout', { method: 'POST' }).then((r) => {
+      if (r.ok) {
+        setAdmin(false);
+        authOverlay.hidden = true;
+        renderAll(); // 重渲染：隐藏访客的编辑/删除/页签操作入口
+        toast('已退出管理模式');
+      } else {
+        toast('退出失败，请重试');
+      }
+    });
   } else if (act === 'change') {
     renderAuthMode('change');
   }
@@ -1215,6 +1222,7 @@ function switchPage(id) {
 }
 
 function startRename(id) {
+  if (!admin) { toast('页面管理仅限管理模式'); return; }
   const tab = pagesTabs.querySelector(`[data-page="${id}"]`);
   const nameEl = tab.querySelector('.page-name');
   const input = document.createElement('input');

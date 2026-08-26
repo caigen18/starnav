@@ -15,7 +15,6 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const zlib = require('zlib');
-const https = require('https');
 
 const ROOT = __dirname;
 const DATA_FILE = path.join(ROOT, 'data.json');
@@ -236,130 +235,6 @@ function mergeForVisitor(incoming) {
   return { data: out };
 }
 
-/* ---------- 真实图标代理（/api/favicon） ---------- */
-/* 前端 img 标签请求本站 /api/favicon?u=网址，服务器代为抓取该站真实图标：
-   先试 /favicon.ico，再解析首页 <link rel="icon">。国内直连可用，无需第三方服务。 */
-
-/* 基础防 SSRF：仅允许公网 http/https，拒绝本机 / 内网地址 */
-function isSafeHost(host) {
-  if (!host) return false;
-  const h = host.toLowerCase();
-  if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') || h.endsWith('.internal')) return false;
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) {
-    const p = h.split('.').map(Number);
-    if (p.some((n) => n > 255)) return false;
-    if (p[0] === 127 || p[0] === 10 || p[0] === 0) return false;
-    if (p[0] === 192 && p[1] === 168) return false;
-    if (p[0] === 172 && p[1] >= 16 && p[1] <= 31) return false;
-    if (p[0] === 169 && p[1] === 254) return false;
-    return true;
-  }
-  return true;
-}
-
-/* 抓取 URL（限时 / 限大小 / 限重定向次数），返回 { type, data } 或 null */
-function httpGetRaw(urlStr, { timeout = 4000, maxBytes = 512 * 1024, redirects = 3 } = {}) {
-  return new Promise((resolve) => {
-    let u;
-    try { u = new URL(urlStr); } catch { return resolve(null); }
-    if (!['http:', 'https:'].includes(u.protocol) || !isSafeHost(u.hostname)) return resolve(null);
-    const lib = u.protocol === 'https:' ? https : http;
-    const req = lib.get(u, {
-      headers: {
-        // 伪装成普通浏览器，避免部分站点拒绝无浏览器 UA 的请求
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Accept': '*/*',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-      },
-      timeout,
-    }, (res) => {
-      const status = res.statusCode || 0;
-      if (status >= 300 && status < 400 && res.headers.location && redirects > 0) {
-        res.resume();
-        let next;
-        try { next = new URL(res.headers.location, u).href; } catch { return resolve(null); }
-        return resolve(httpGetRaw(next, { timeout, maxBytes, redirects: redirects - 1 }));
-      }
-      if (status !== 200) { res.resume(); return resolve(null); }
-      const type = String(res.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
-      const chunks = [];
-      let size = 0;
-      res.on('data', (c) => {
-        size += c.length;
-        if (size > maxBytes) { req.destroy(); return resolve(null); }
-        chunks.push(c);
-      });
-      res.on('end', () => resolve({ type, data: Buffer.concat(chunks) }));
-      res.on('error', () => resolve(null));
-    });
-    req.on('timeout', () => { req.destroy(); resolve(null); });
-    req.on('error', () => resolve(null));
-  });
-}
-
-/* 图标缓存：成功 24h，失败 10min；并发去重 */
-const faviconCache = new Map(); // origin -> { fav, ts }
-const faviconInflight = new Map();
-const FAV_TTL = 24 * 60 * 60 * 1000;
-const FAV_NEG_TTL = 10 * 60 * 1000;
-
-async function fetchFaviconImpl(origin) {
-  // 1) 常见根路径图标（favicon.ico / favicon.png / apple-touch-icon 等）
-  const roots = [
-    `${origin}/favicon.ico`,
-    `${origin}/favicon.png`,
-    `${origin}/apple-touch-icon.png`,
-    `${origin}/apple-touch-icon-precomposed.png`,
-  ];
-  for (const cand of roots) {
-    const ico = await httpGetRaw(cand, { timeout: 3000 });
-    if (ico && ico.data.length > 0 && ico.type.startsWith('image/')) return ico;
-  }
-
-  // 2) 抓首页解析 <link rel="icon">（限 4s；最多尝试前 2 个候选图标）
-  const html = await httpGetRaw(`${origin}/`, { maxBytes: 300 * 1024, timeout: 4000 });
-  if (html && html.type.includes('html')) {
-    const text = html.data.toString('utf8');
-    let tried = 0;
-    for (const m of text.matchAll(/<link[^>]*>/gi)) {
-      const tag = m[0];
-      if (!/\bicon\b/i.test(tag)) continue;
-      const href = (tag.match(/href\s*=\s*["']([^"']+)["']/i) || [])[1];
-      if (!href) continue;
-      let iconUrl;
-      try { iconUrl = new URL(href, origin).href; } catch { continue; }
-      if (!isSafeHost(iconUrl.hostname) || !['http:', 'https:'].includes(iconUrl.protocol)) continue;
-      const img = await httpGetRaw(iconUrl, { timeout: 3000 });
-      if (img && img.data.length > 0 && img.type.startsWith('image/')) return img;
-      if (++tried >= 2) break;
-    }
-  }
-  return null;
-}
-
-async function getFavicon(urlStr) {
-  let u;
-  try { u = new URL(urlStr); } catch { return null; }
-  if (!isSafeHost(u.hostname) || !['http:', 'https:'].includes(u.protocol)) return null;
-  const origin = u.origin;
-
-  const cached = faviconCache.get(origin);
-  const now = Date.now();
-  if (cached && now - cached.ts < (cached.fav ? FAV_TTL : FAV_NEG_TTL)) return cached.fav;
-  if (faviconInflight.has(origin)) return faviconInflight.get(origin);
-
-  const p = fetchFaviconImpl(origin).then((fav) => {
-    faviconCache.set(origin, { fav, ts: Date.now() });
-    if (faviconCache.size > 300) {
-      const first = faviconCache.keys().next().value;
-      if (first) faviconCache.delete(first);
-    }
-    return fav;
-  }).finally(() => faviconInflight.delete(origin));
-  faviconInflight.set(origin, p);
-  return p;
-}
-
 /* ---------- API ---------- */
 async function handleApi(req, res, url) {
   if (url.pathname === '/api/session') {
@@ -430,22 +305,6 @@ async function handleApi(req, res, url) {
     const merged = mergeForVisitor(incoming);
     if (merged.error) return json(res, { error: merged.error, page: merged.page }, 403);
     return json(res, applyData(merged.data));
-  }
-
-  if (url.pathname === '/api/favicon' && req.method === 'GET') {
-    const fav = await getFavicon(url.searchParams.get('u') || '');
-    if (!fav) return json(res, { error: 'no_favicon' }, 404);
-    const etag = `"${fav.data.length}-${crypto.createHash('md5').update(fav.data).digest('hex').slice(0, 8)}"`;
-    if (req.headers['if-none-match'] === etag) {
-      res.writeHead(304, { ETag: etag });
-      return res.end();
-    }
-    res.writeHead(200, {
-      'Content-Type': fav.type,
-      'Cache-Control': 'public, max-age=86400',
-      'ETag': etag,
-    });
-    return res.end(fav.data);
   }
 
   return json(res, { error: 'not_found' }, 404);

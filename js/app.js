@@ -426,6 +426,22 @@ async function saveData() {
 const activePage = () => data.pages.find((p) => p.id === data.activePage) || data.pages[0];
 const links = () => activePage().links;
 
+/* 访客的手动排序（仅本地生效，不影响共享数据）：
+   访客拖拽 / ↑↓ 调整的是自己浏览器里的顺序，管理员的手动排序才是共享的 */
+const LOCAL_ORDER_KEY = 'starnav:manual-order:v1';
+let localOrder = {};
+function loadLocalOrder() {
+  try { localOrder = JSON.parse(localStorage.getItem(LOCAL_ORDER_KEY)) || {}; } catch { localOrder = {}; }
+}
+function saveLocalOrder() {
+  try { localStorage.setItem(LOCAL_ORDER_KEY, JSON.stringify(localOrder)); } catch { /* 静默 */ }
+}
+function getLocalOrder() {
+  const pageId = activePage().id;
+  const base = links().map((l) => l.id);
+  return localOrder[pageId] && localOrder[pageId].length ? localOrder[pageId] : base;
+}
+
 /* 合并新增的内置站点（币圈 / 国内 AI 助手 / 全球 Top 100 / 中国 Top 50 等）：
    按 URL 去重，把"已有数据里不存在"的默认站点追加到当前页面，
    避免老用户升级后看不到新分类/新站点，也不会重复添加 */
@@ -474,7 +490,18 @@ const filtered = () => {
     const hay = `${l.title} ${l.desc} ${l.category} ${l.url} ${getDomain(l.url)}`.toLowerCase();
     return okCat && (!q || hay.includes(q));
   });
-  if (state.sort === 'manual' || !SORTS[state.sort]) return list;
+  if (state.sort === 'manual') {
+    if (admin) return list; // 管理员：共享顺序（数组顺序，已持久化）
+    // 访客：本地顺序（仅自己可见）
+    const order = getLocalOrder();
+    const pos = new Map(order.map((id, i) => [id, i]));
+    return [...list].sort((a, b) => {
+      const pa = pos.has(a.id) ? pos.get(a.id) : Number.MAX_SAFE_INTEGER;
+      const pb = pos.has(b.id) ? pos.get(b.id) : Number.MAX_SAFE_INTEGER;
+      return pa - pb;
+    });
+  }
+  if (!SORTS[state.sort]) return list;
   return [...list].sort(SORTS[state.sort].fn);
 };
 
@@ -583,7 +610,7 @@ function renderClassicGrid() {
 function classicLinkHTML(l, manual) {
   const editable = canModify(l);
   const ops = [
-    ...(manual && editable
+    ...(manual
       ? [`<i class="cl-op" data-action="up" title="上移">↑</i>`,
          `<i class="cl-op" data-action="down" title="下移">↓</i>`]
       : []),
@@ -614,7 +641,7 @@ function miniIcon(l) {
 function cardHTML(l, delay, manual) {
   const editable = canModify(l);
   const actions = [
-    ...(manual && editable
+    ...(manual
       ? [`<button type="button" class="act" data-action="up" title="上移" aria-label="上移">↑</button>`,
          `<button type="button" class="act" data-action="down" title="下移" aria-label="下移">↓</button>`]
       : []),
@@ -626,7 +653,7 @@ function cardHTML(l, delay, manual) {
   ].join('');
 
   return `
-  <article class="card${manual ? ' manual' : ''}" style="animation-delay:${delay}ms" data-id="${l.id}"${manual && editable ? ' draggable="true"' : ''}>
+  <article class="card${manual ? ' manual' : ''}" style="animation-delay:${delay}ms" data-id="${l.id}"${manual ? ' draggable="true"' : ''}>
     <a class="card-hit" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer" aria-label="打开 ${esc(l.title)}"></a>
     <div class="card-body">
       <div class="card-top">
@@ -1105,7 +1132,18 @@ grid.addEventListener('click', (e) => {
 
 /* 手动排序：上移 / 下移 */
 function moveLink(id, dir) {
-  if (!admin) { toast('访客不能调整站点顺序'); return; }
+  if (!admin) {
+    // 访客：调整本地顺序（仅自己可见）
+    const order = getLocalOrder().slice();
+    const i = order.indexOf(id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= order.length) return;
+    [order[i], order[j]] = [order[j], order[i]];
+    localOrder[activePage().id] = order;
+    saveLocalOrder();
+    renderGrid(false);
+    return;
+  }
   const list = links();
   const i = list.findIndex((x) => x.id === id);
   const j = i + dir;
@@ -1121,8 +1159,6 @@ let dragId = null;
 grid.addEventListener('dragstart', (e) => {
   const card = e.target.closest('.card');
   if (!card || state.sort !== 'manual') return;
-  const l = links().find((x) => x.id === card.dataset.id);
-  if (!l || !canModify(l)) { e.preventDefault(); return; }
   dragId = card.dataset.id;
   card.classList.add('dragging');
   e.dataTransfer.effectAllowed = 'move';
@@ -1151,22 +1187,36 @@ grid.addEventListener('drop', (e) => {
   e.preventDefault();
   const target = e.target.closest('.card');
   grid.querySelectorAll('.card').forEach((c) => c.classList.remove('drop-before', 'drop-after'));
-
-  const list = links();
-  const from = list.findIndex((l) => l.id === dragId);
+  const draggedId = dragId;
   dragId = null;
-  if (from < 0) return;
+  if (!target || target.dataset.id === draggedId) return; // 丢回自己：原位
 
-  // 丢回自己或空白区域：保持原位 / 追加到末尾
-  if (!target || target.dataset.id === list[from].id) return;
-
-  const to = list.findIndex((l) => l.id === target.dataset.id);
   const before = target.classList.contains('drop-before');
+  if (!admin) {
+    // 访客：调整本地顺序（仅自己可见）
+    const order = getLocalOrder().slice();
+    const from = order.indexOf(draggedId);
+    const to = order.indexOf(target.dataset.id);
+    if (from < 0 || to < 0) return;
+    const [moved] = order.splice(from, 1);
+    let insertAt = to + (before ? 0 : 1);
+    if (from < to) insertAt--;
+    order.splice(Math.max(0, Math.min(insertAt, order.length)), 0, moved);
+    localOrder[activePage().id] = order;
+    saveLocalOrder();
+    renderGrid(false);
+    return;
+  }
+
+  // 管理员：调整共享顺序（持久化到服务器）
+  const list = links();
+  const from = list.findIndex((l) => l.id === draggedId);
+  if (from < 0) return;
+  const to = list.findIndex((l) => l.id === target.dataset.id);
   const [moved] = list.splice(from, 1);
   let insertAt = to + (before ? 0 : 1);
   if (from < to) insertAt--;
   list.splice(Math.max(0, Math.min(insertAt, list.length)), 0, moved);
-
   saveData();
   renderGrid(false);
 });
@@ -1334,9 +1384,13 @@ $('#sortBar').addEventListener('click', (e) => {
   renderGrid();
   updateSortBar();
   if (state.sort === 'manual') {
-    toast(state.theme === 'classic'
-      ? '手动排序：使用 ↑ ↓ 按钮调整顺序'
-      : '手动排序：直接拖拽卡片，或用 ↑ ↓ 按钮调整顺序');
+    toast(admin
+      ? (state.theme === 'classic'
+        ? '手动排序：使用 ↑ ↓ 按钮调整顺序（将保存给所有人）'
+        : '手动排序：直接拖拽卡片，或用 ↑ ↓ 按钮调整顺序（将保存给所有人）')
+      : (state.theme === 'classic'
+        ? '手动排序：使用 ↑ ↓ 按钮调整顺序（仅自己可见）'
+        : '手动排序：直接拖拽卡片，或用 ↑ ↓ 按钮调整顺序（仅自己可见，不影响他人）'));
   }
 });
 
@@ -1570,6 +1624,7 @@ async function boot() {
 /* 首屏立即渲染：先用本地缓存（或默认种子）秒开页面，
    再在后台与服务器同步——服务器慢也不影响首屏打开 */
 if (!data || !data.pages.length) data = buildSeed();
+loadLocalOrder();
 setAdmin(admin);
 renderAll();
 boot();

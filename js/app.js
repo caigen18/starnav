@@ -282,6 +282,46 @@ const DEFAULT_LINKS = [
   { title: '晋江文学城', url: 'https://www.jjwxc.net', desc: '言情小说', category: '中国 Top 50' },
   { title: '番茄小说', url: 'https://fanqienovel.com', desc: '免费小说', category: '中国 Top 50' },
   { title: '喜马拉雅', url: 'https://www.ximalaya.com', desc: '有声书 / 音频', category: '中国 Top 50' },
+
+  // 🏛️ 便民服务（政务办事，全部为政府官方平台）
+  { title: '国家政务服务平台', url: 'https://gjzwfw.www.gov.cn', desc: '全国一体化政务服务总入口', category: '便民服务' },
+  { title: '中国政府网', url: 'https://www.gov.cn', desc: '国务院官网 / 政策查询', category: '便民服务' },
+  { title: '人社政务服务平台', url: 'https://www.12333.gov.cn', desc: '社保 / 就业 / 养老', category: '便民服务' },
+  { title: '国家社会保险公共服务平台', url: 'https://si.12333.gov.cn', desc: '社保查询 / 养老金测算', category: '便民服务' },
+  { title: '国家医保服务平台', url: 'https://fuwu.nhsa.gov.cn', desc: '医保查询 / 异地就医备案', category: '便民服务' },
+  { title: '住房公积金服务平台', url: 'https://www.12329.gov.cn', desc: '公积金查询 / 提取', category: '便民服务' },
+  { title: '自然人电子税务局', url: 'https://etax.chinatax.gov.cn', desc: '个税申报 / 纳税记录', category: '便民服务' },
+  { title: '国家企业信用信息公示系统', url: 'https://www.gsxt.gov.cn', desc: '查企业 / 年报', category: '便民服务' },
+  { title: '信用中国', url: 'https://www.creditchina.gov.cn', desc: '信用查询 / 红黑名单', category: '便民服务' },
+  { title: '央行征信中心', url: 'https://ipcrs.pbccrc.org.cn', desc: '个人信用报告查询', category: '便民服务' },
+  { title: '中国执行信息公开网', url: 'https://zxgk.court.gov.cn', desc: '被执行人查询', category: '便民服务' },
+  { title: '中国裁判文书网', url: 'https://wenshu.court.gov.cn', desc: '判决文书检索', category: '便民服务' },
+  { title: '国家移民管理局', url: 'https://www.nia.gov.cn', desc: '护照 / 签证 / 出入境', category: '便民服务' },
+  { title: '交管12123', url: 'https://gab.122.gov.cn', desc: '驾驶证 / 机动车业务', category: '便民服务' },
+  { title: '铁路12306', url: 'https://www.12306.cn', desc: '火车票购票', category: '便民服务' },
+  { title: '学信网', url: 'https://www.chsi.com.cn', desc: '学籍 / 学历查询', category: '便民服务' },
+  { title: '全国12315平台', url: 'https://www.12315.cn', desc: '消费维权投诉', category: '便民服务' },
+  { title: '中国法律服务网', url: 'http://www.12348.gov.cn', desc: '公共法律服务 / 咨询', category: '便民服务' },
+  { title: '12377举报中心', url: 'https://www.12377.cn', desc: '网络不良信息举报', category: '便民服务' },
+  { title: '12321举报中心', url: 'https://www.12321.cn', desc: '垃圾信息 / 诈骗举报', category: '便民服务' },
+  { title: '国家信访局', url: 'https://www.gjxfj.gov.cn', desc: '网上信访', category: '便民服务' },
+  { title: '中国领事服务网', url: 'https://cs.mfa.gov.cn', desc: '出国 / 领事保护', category: '便民服务' },
+  { title: '中国天气网', url: 'https://www.weather.com.cn', desc: '官方天气预报', category: '便民服务' },
+  { title: '国家图书馆', url: 'https://www.nlc.cn', desc: '公共图书馆 / 数字资源', category: '便民服务' },
+  { title: '民政部', url: 'https://www.mca.gov.cn', desc: '婚姻登记 / 社会救助', category: '便民服务' },
+  { title: '教育部', url: 'https://www.moe.gov.cn', desc: '教育政策 / 考试', category: '便民服务' },
+  { title: '公安部', url: 'https://www.mps.gov.cn', desc: '公安政务服务', category: '便民服务' },
+  { title: '最高人民法院', url: 'https://www.court.gov.cn', desc: '法院资讯 / 诉讼服务', category: '便民服务' },
+  { title: '国家市场监管总局', url: 'https://www.samr.gov.cn', desc: '市场监管', category: '便民服务' },
+  { title: '国家知识产权局', url: 'https://www.cnipa.gov.cn', desc: '专利 / 商标查询', category: '便民服务' },
+  { title: '海关总署', url: 'http://www.customs.gov.cn', desc: '通关 / 海关服务', category: '便民服务' },
+  { title: '司法部', url: 'http://www.moj.gov.cn', desc: '法律服务', category: '便民服务' },
+  { title: '住房和城乡建设部', url: 'https://www.mohurd.gov.cn', desc: '住建政策', category: '便民服务' },
+  { title: '国家卫健委', url: 'https://www.nhc.gov.cn', desc: '卫生健康政策', category: '便民服务' },
+  { title: '北京政务服务网', url: 'https://banshi.beijing.gov.cn', desc: '北京一网通办', category: '便民服务' },
+  { title: '上海一网通办', url: 'https://zwdt.sh.gov.cn', desc: '上海政务服务', category: '便民服务' },
+  { title: '广东政务服务网', url: 'https://www.gdzwfw.gov.cn', desc: '广东政务服务', category: '便民服务' },
+  { title: '浙江政务服务网', url: 'https://www.zjzwfw.gov.cn', desc: '浙里办政务服务', category: '便民服务' },
 ];
 
 /* ---------- 数据层（多页面模型，服务端持久化 + 本地缓存） ---------- */
@@ -390,7 +430,7 @@ const links = () => activePage().links;
    按 URL 去重，把"已有数据里不存在"的默认站点追加到当前页面，
    避免老用户升级后看不到新分类/新站点，也不会重复添加 */
 function mergeNewDefaults() {
-  const MERGE_CATEGORIES = ['币圈', 'AI 助手', '全球 Top 100', '中国 Top 50'];
+  const MERGE_CATEGORIES = ['币圈', 'AI 助手', '全球 Top 100', '中国 Top 50', '便民服务'];
   const candidates = DEFAULT_LINKS.filter((l) => MERGE_CATEGORIES.includes(l.category));
   const known = new Set();
   for (const p of data.pages) for (const l of p.links) known.add(l.url);

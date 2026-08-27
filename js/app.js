@@ -633,10 +633,12 @@ function classicLinkHTML(l, manual) {
 }
 
 function miniIcon(l) {
-  // 经典风格行内小图标：同样直接调用本地 /api/icon，失败回退 emoji / 字母
+  // 经典风格行内小图标：同一套真实图标规则（根目录 favicon.ico → Google s2 → emoji/字母）
   const emoji = (l.icon && EMOJI_RE.test(l.icon)) ? l.icon : '';
-  const fav = (l.icon && /^https?:\/\//i.test(l.icon)) ? l.icon : `/api/icon?u=${encodeURIComponent(l.url)}`;
-  return `<img class="cl-icon cl-img" src="${esc(fav)}" alt="" loading="lazy" data-letter="${esc(l.title)}" data-emoji="${esc(emoji)}" onerror="window.__iconFallback && window.__iconFallback(this)">`;
+  const domain = encodeURIComponent(getDomain(l.url));
+  const direct = (l.icon && /^https?:\/\//i.test(l.icon)) ? l.icon : `https://${getDomain(l.url)}/favicon.ico`;
+  const s2 = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+  return `<img class="cl-icon cl-img" src="${esc(direct)}" alt="" loading="lazy" data-next="${esc(s2)}" data-letter="${esc(l.title)}" data-emoji="${esc(emoji)}" onerror="window.__iconFallback && window.__iconFallback(this)">`;
 }
 
 function cardHTML(l, delay, manual) {
@@ -673,23 +675,31 @@ function cardHTML(l, delay, manual) {
   </article>`;
 }
 
-/* 真实图标获取（服务器自动下载并存本地，前端直接调用本地接口）：
+/* 真实图标获取规则（浏览器直连，无需服务器干预）：
    1) 用户自定义图标网址 → 直接使用
-   2) 否则 → 请求 /api/icon?u=网址（服务器已后台下载缓存，直接返回本地文件）
-   3) 仍失败 → emoji（内置站点）/ 渐变字母头像 */
+   2) 站点根目录 /favicon.ico → 最真实的官方图标
+   3) Google s2 favicon 服务兜底（覆盖几乎所有站点）
+   4) 仍失败 → emoji（内置站点）/ 渐变字母头像 */
 function iconHTML(l) {
   // 用户手动填的图片网址：直接使用
   if (l.icon && /^https?:\/\//i.test(l.icon)) {
     return `<img class="icon icon-img" src="${esc(l.icon)}" alt="" loading="lazy" data-letter="${esc(l.title)}" data-emoji="" onerror="window.__iconFallback && window.__iconFallback(this)">`;
   }
   const emoji = (l.icon && EMOJI_RE.test(l.icon)) ? l.icon : '';
-  const fav = `/api/icon?u=${encodeURIComponent(l.url)}`;
-  return `<img class="icon icon-img" src="${fav}" alt="" loading="lazy" data-letter="${esc(l.title)}" data-emoji="${esc(emoji)}" onerror="window.__iconFallback && window.__iconFallback(this)">`;
+  const domain = encodeURIComponent(getDomain(l.url));
+  const direct = `https://${getDomain(l.url)}/favicon.ico`;
+  const s2 = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+  return `<img class="icon icon-img" src="${esc(direct)}" alt="" loading="lazy" data-next="${esc(s2)}" data-letter="${esc(l.title)}" data-emoji="${esc(emoji)}" onerror="window.__iconFallback && window.__iconFallback(this)">`;
 }
 
-/* 图标加载失败时回退：优先 emoji（内置站点），否则渐变文字头像；
-   经典风格的小图标（cl-img）回退为对应的小尺寸样式 */
+/* 图标加载失败时的多级回退：
+   先切换到 data-next（Google s2），再失败才用 emoji / 渐变字母头像 */
 window.__iconFallback = (img) => {
+  if (img.dataset.next) {
+    img.src = img.dataset.next;
+    img.dataset.next = ''; // 防止失败后无限循环
+    return;
+  }
   const emoji = img.dataset.emoji;
   const classic = img.classList.contains('cl-img');
   if (emoji) {
@@ -899,7 +909,6 @@ function renderAuthMode(mode) {
     $('#authActions').hidden = true;
     $('#authLinks').innerHTML =
       '<button type="button" class="auth-link primary" data-act="logout">退出管理模式</button>' +
-      '<button type="button" class="auth-link" data-act="icons">重新下载图标</button>' +
       '<button type="button" class="auth-link" data-act="change">修改管理密码</button>';
   }
   setTimeout(() => {
@@ -965,11 +974,6 @@ $('#authLinks').addEventListener('click', (e) => {
       } else {
         toast('退出失败，请重试');
       }
-    });
-  } else if (act === 'icons') {
-    api('/api/icons/refresh?force=1', { method: 'POST' }).then((r) => {
-      if (r.ok) toast(`已重新排队下载图标（${r.body.queued || 0} 个）`);
-      else toast('重新下载失败（需管理模式）');
     });
   } else if (act === 'change') {
     renderAuthMode('change');
@@ -1640,10 +1644,6 @@ async function boot() {
   booted = true;
   setAdmin(admin);
   renderAll();
-  // 图标在服务器后台自动下载，首次打开可能尚未就绪：稍后自动重渲染一次以显示真实图标
-  setTimeout(() => {
-    if (!document.hidden) renderGrid();
-  }, 9000);
 }
 
 /* 首屏立即渲染：先用本地缓存（或默认种子）秒开页面，

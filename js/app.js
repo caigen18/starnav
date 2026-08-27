@@ -899,6 +899,7 @@ function renderAuthMode(mode) {
     $('#authActions').hidden = true;
     $('#authLinks').innerHTML =
       '<button type="button" class="auth-link primary" data-act="logout">退出管理模式</button>' +
+      '<button type="button" class="auth-link" data-act="icons">重新下载图标</button>' +
       '<button type="button" class="auth-link" data-act="change">修改管理密码</button>';
   }
   setTimeout(() => {
@@ -964,6 +965,11 @@ $('#authLinks').addEventListener('click', (e) => {
       } else {
         toast('退出失败，请重试');
       }
+    });
+  } else if (act === 'icons') {
+    api('/api/icons/refresh?force=1', { method: 'POST' }).then((r) => {
+      if (r.ok) toast(`已重新排队下载图标（${r.body.queued || 0} 个）`);
+      else toast('重新下载失败（需管理模式）');
     });
   } else if (act === 'change') {
     renderAuthMode('change');
@@ -1634,6 +1640,10 @@ async function boot() {
   booted = true;
   setAdmin(admin);
   renderAll();
+  // 图标在服务器后台自动下载，首次打开可能尚未就绪：稍后自动重渲染一次以显示真实图标
+  setTimeout(() => {
+    if (!document.hidden) renderGrid();
+  }, 9000);
 }
 
 /* 首屏立即渲染：先用本地缓存（或默认种子）秒开页面，

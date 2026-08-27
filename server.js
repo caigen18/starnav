@@ -29,6 +29,10 @@ const MIME = {
   '.json': 'application/json; charset=utf-8',
   '.md': 'text/markdown; charset=utf-8',
   '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
   '.txt': 'text/plain; charset=utf-8',
@@ -313,7 +317,12 @@ async function handleApi(req, res, url) {
   if (url.pathname === '/api/icon' && req.method === 'GET') {
     const host = getHost(url.searchParams.get('u') || '');
     if (!host) return json(res, { error: 'bad_url' }, 400);
-    fs.mkdirSync(ICONS_DIR, { recursive: true });
+    try {
+      fs.mkdirSync(ICONS_DIR, { recursive: true });
+    } catch (e) {
+      console.error(`[图标] 无法写入图标目录 ${ICONS_DIR}: ${e.message}`);
+      return json(res, { error: 'icons_dir_unwritable' }, 500);
+    }
     let file = iconFileFor(host);
     if (!file && !isFailed(host)) {
       const downloaded = await downloadIconOnce(host);
@@ -334,6 +343,26 @@ async function handleApi(req, res, url) {
       'ETag': etag,
     });
     return res.end(buf);
+  }
+
+  /* 图标状态 / 重新下载（管理模式专用，排查用） */
+  if (url.pathname === '/api/icons/status' && req.method === 'GET') {
+    if (!validSession(req)) return json(res, { error: 'unauthorized' }, 403);
+    return json(res, iconStatusInfo());
+  }
+  if (url.pathname === '/api/icons/refresh' && req.method === 'POST') {
+    if (!validSession(req)) return json(res, { error: 'unauthorized' }, 403);
+    const force = url.searchParams.get('force') === '1';
+    if (force) {
+      try {
+        for (const f of fs.readdirSync(ICONS_DIR)) fs.unlinkSync(path.join(ICONS_DIR, f));
+        console.log('[图标] 已清空图标缓存，开始重新下载全部');
+      } catch { /* 目录不存在等 */ }
+    }
+    iconFailed.clear();
+    iconQueue.length = 0;
+    queueMissingIcons();
+    return json(res, { ok: true, force, queued: iconQueue.length });
   }
 
   return json(res, { error: 'not_found' }, 404);
@@ -449,12 +478,21 @@ async function downloadIcon(host) {
     }
   }
   iconFailed.set(host, Date.now());
+  console.log(`[图标] 下载失败（30 分钟后自动重试）：${host}`);
   return null;
 }
 
+/* 并发下载上限：避免浏览器首屏同时拉几十个图标导致互相超时 */
+const MAX_ICON_CONCURRENCY = 6;
+let iconConcurrency = 0;
+
 function downloadIconOnce(host) {
   if (iconInFlight.has(host)) return iconInFlight.get(host);
-  const p = downloadIcon(host).finally(() => iconInFlight.delete(host));
+  const p = (async () => {
+    while (iconConcurrency >= MAX_ICON_CONCURRENCY) await new Promise((r) => setTimeout(r, 100));
+    iconConcurrency++;
+    try { return await downloadIcon(host); } finally { iconConcurrency--; }
+  })().finally(() => iconInFlight.delete(host));
   iconInFlight.set(host, p);
   return p;
 }
@@ -462,6 +500,8 @@ function downloadIconOnce(host) {
 /* 后台自动补齐：启动时与数据更新后，为所有缺图标的站点排队下载（节流） */
 const iconQueue = [];
 let iconPumping = false;
+
+const iconStat = { ok: 0, fail: 0 };
 
 function queueMissingIcons() {
   for (const p of data.pages) for (const l of p.links) {
@@ -476,16 +516,47 @@ function queueMissingIcons() {
 async function pumpIconQueue() {
   if (iconPumping) return;
   iconPumping = true;
+  iconStat.ok = 0;
+  iconStat.fail = 0;
   try {
     fs.mkdirSync(ICONS_DIR, { recursive: true });
+  } catch (e) {
+    console.error(`[图标] 无法创建图标目录 ${ICONS_DIR}: ${e.message}`);
+    iconPumping = false;
+    return;
+  }
+  try {
     while (iconQueue.length) {
       const host = iconQueue.shift();
-      if (!iconFileFor(host) && !isFailed(host)) await downloadIconOnce(host);
+      if (!iconFileFor(host) && !isFailed(host)) {
+        const file = await downloadIconOnce(host);
+        if (file) iconStat.ok++;
+        else iconStat.fail++;
+      }
       await new Promise((r) => setTimeout(r, 200)); // 节流，避免打爆小站点
     }
+    if (iconStat.ok + iconStat.fail > 0) {
+      console.log(`[图标] 本次下载完成：成功 ${iconStat.ok} 个，失败 ${iconStat.fail} 个`);
+    }
+  } catch (e) {
+    console.error(`[图标] 下载过程异常: ${e.message}`);
   } finally {
     iconPumping = false;
   }
+}
+
+/* 统计缺失/已缓存的图标（管理模式排查用） */
+function iconStatusInfo() {
+  let cached = 0;
+  try { cached = fs.readdirSync(ICONS_DIR).length; } catch { /* 目录不存在视为 0 */ }
+  const hosts = new Set();
+  for (const p of data.pages) for (const l of p.links) {
+    const h = getHost(l.url);
+    if (h) hosts.add(h);
+  }
+  let failed = 0;
+  for (const h of iconFailed.keys()) if (isFailed(h)) failed++;
+  return { total: hosts.size, cached, failed, queued: iconQueue.length, pumping: iconPumping };
 }
 
 /* ---------- 静态文件（ETag 缓存校验：内容没变则 304，不重传文件） ---------- */
@@ -534,6 +605,14 @@ server.listen(PORT, () => {
   console.log(`✦ 星遇导航已启动：http://localhost:${PORT}`);
   console.log(`  管理入口（隐藏的模式按钮）：http://localhost:${PORT}/?admin=starnav`);
   console.log(`  数据文件：${DATA_FILE}`);
+  console.log(`  图标自动下载：已启用（目录 ${ICONS_DIR}）`);
   // 启动后自动下载所有站点图标（后台、节流）
-  setTimeout(() => { fs.mkdirSync(ICONS_DIR, { recursive: true }); queueMissingIcons(); }, 800);
+  setTimeout(() => {
+    try {
+      fs.mkdirSync(ICONS_DIR, { recursive: true });
+      queueMissingIcons();
+    } catch (e) {
+      console.error(`[图标] 启动自动下载失败: ${e.message}`);
+    }
+  }, 800);
 });
